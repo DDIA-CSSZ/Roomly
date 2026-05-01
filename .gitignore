@@ -210,3 +210,24 @@ __marimo__/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+
+# Secrets & Environment variables
+.env
+backend/.env
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+*/venv/
+*/.venv/
+
+# Python Cache files (foarte important ca sa nu urci fisiere compilate inutile)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+*.db
+*.sqlite3
+roomly.db

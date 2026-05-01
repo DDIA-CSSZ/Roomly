@@ -4,7 +4,7 @@ from typing import Any
 import jwt
 from passlib.context import CryptContext
 
-from .config import settings
+from config import settings
 
 # bcrypt cu rounds=12 (default passlib) — bun balans între securitate și viteză
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

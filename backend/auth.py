@@ -5,9 +5,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from .database import get_db
-from .models import User, UserRole
-from .security import decode_access_token
+from database import get_db
+from models import User, UserRole
+from security import decode_access_token
 
 # tokenUrl = path-ul endpoint-ului de login (definit în routerul de auth).
 # Folosit doar de Swagger UI pentru butonul "Authorize".

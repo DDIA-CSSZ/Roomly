@@ -2,26 +2,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-    pool_size=10,
-    max_overflow=20,
-    echo=False,
-)
-
 # Format: mysql+pymysql://<user>:<password>@<host>:<port>/<database>?charset=utf8mb4
 # IMPORTANT: în producție citește din variabile de environment (os.getenv) — nu hardcodat.
-DATABASE_URL = "mysql+pymysql://roomly_user:parola_sigura@localhost:3306/roomly_db?charset=utf8mb4"
+DATABASE_URL = "sqlite:///./roomly.db"
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,    # validează conexiunea înainte de fiecare folosire (evită "MySQL server has gone away")
-    pool_recycle=3600,     # reciclează conexiunile la 1h (MySQL închide default la 8h)
-    pool_size=10,
-    max_overflow=20,
-    echo=False,            # True doar la debug — afișează SQL-ul generat
+    connect_args={"check_same_thread": False},
+    echo=False,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
