@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from .models import RequestStatus, UserRole
+from models import RequestStatus, UserRole
 
 
 # ============================================================
