@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
     # Seed defaults (folosite doar de seed.py)
-    SEED_ADMIN_EMAIL: str = "admin@roomly.local"
+    SEED_ADMIN_EMAIL: str = "admin@roomly.com"
     SEED_ADMIN_PASSWORD: str = "AdminParola123"
     SEED_DEFAULT_PASSWORD: str = "Parola123"   # parolă comună pentru ceilalți useri demo
 

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import Base, engine
-from routers import auth_router, rooms_router, service_categories_router
+from routers import auth_router, rooms_router, service_categories_router, requests_router
 
 # Importăm toate modelele înainte de create_all,
 # pentru ca SQLAlchemy să le înregistreze în Base.metadata.
@@ -79,7 +79,7 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(rooms_router.router)
 app.include_router(service_categories_router.router)
-
+app.include_router(requests_router.router)
 
 # ============================================================
 # ROOT / HEALTH CHECK
