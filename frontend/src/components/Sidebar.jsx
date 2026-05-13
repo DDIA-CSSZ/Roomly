@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 const MENU_ITEMS = [
   { label: 'Dashboard', to: '/dashboard', enabled: true },
   { label: 'Cerere nouă', to: '/new-request', enabled: true },
-  { label: 'Cererile mele', to: '/dashboard', enabled: true },
+  { label: 'Cererile mele', to: '/my-requests', enabled: true },
   { label: 'Profil', to: '/profile', enabled: false },
 ]
 

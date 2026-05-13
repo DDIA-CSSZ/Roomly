@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import NewRequestPage from './pages/NewRequestPage'
+import MyRequestsPage from './pages/MyRequestsPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 /**
@@ -36,6 +37,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <NewRequestPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/my-requests"
+            element={
+              <ProtectedRoute>
+                <MyRequestsPage />
               </ProtectedRoute>
             }
           />
