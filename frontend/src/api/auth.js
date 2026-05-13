@@ -50,3 +50,10 @@ export async function login(email, password) {
 export async function getCurrentUser() {
   return apiFetch('/auth/me')
 }
+
+export async function register(payload) {
+  return apiFetch('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
