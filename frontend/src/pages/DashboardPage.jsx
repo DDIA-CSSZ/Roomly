@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import ServiceCard from '../components/ServiceCard'
 import RequestTable from '../components/RequestTable'
@@ -15,19 +15,19 @@ const SERVICES = [
     tone: 'sage',
   },
   {
-    title: 'Housekeeping',
+    title: 'Întreținere cameră',
     description: 'Curățenie, schimbare lenjerie și pregătirea camerei.',
     icon: 'HK',
     tone: 'blue',
   },
   {
-    title: 'Maintenance',
+    title: 'Mentenanță',
     description: 'Sesizări tehnice pentru instalații, mobilier sau echipamente.',
     icon: 'MT',
     tone: 'amber',
   },
   {
-    title: 'Consumables/Amenities',
+    title: 'Facilități',
     description: 'Prosoape, săpun, apă, papuci și alte consumabile.',
     icon: 'AM',
     tone: 'rose',
@@ -147,9 +147,9 @@ export default function DashboardPage() {
             <h2>{copy.title}</h2>
             <p>{copy.roleText}</p>
           </div>
-          <button type="button" disabled title="Pagina de creare cerere va fi adăugată ulterior">
+          <Link className="dashboard-toolbar__button" to="/new-request">
             Cerere nouă
-          </button>
+          </Link>
         </section>
 
         {role === 'guest' ? (

@@ -12,6 +12,13 @@ export function getAssignedRequests() {
   return apiFetch('/requests/assigned')
 }
 
+export function createRequest(payload) {
+  return apiFetch('/requests', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function getRequestsForRole(role) {
   if (role === 'guest') return getMyRequests()
   if (role === 'staff') return getAssignedRequests()

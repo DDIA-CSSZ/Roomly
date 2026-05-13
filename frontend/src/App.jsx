@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import NewRequestPage from './pages/NewRequestPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 /**
@@ -26,6 +27,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/new-request"
+            element={
+              <ProtectedRoute>
+                <NewRequestPage />
               </ProtectedRoute>
             }
           />
