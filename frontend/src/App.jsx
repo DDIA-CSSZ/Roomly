@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import NewRequestPage from './pages/NewRequestPage'
 import MyRequestsPage from './pages/MyRequestsPage'
+import RequestDetailsPage from './pages/RequestDetailsPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 /**
@@ -46,6 +47,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <MyRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/requests/:id"
+            element={
+              <ProtectedRoute>
+                <RequestDetailsPage />
               </ProtectedRoute>
             }
           />

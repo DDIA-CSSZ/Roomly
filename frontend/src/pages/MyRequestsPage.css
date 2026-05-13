@@ -156,8 +156,11 @@
   margin: 0;
 }
 
-.my-requests-table button {
+.my-requests-table button,
+.my-requests-details-link {
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid #cfc6b6;
   border-radius: 8px;
   padding: 0 12px;
@@ -166,10 +169,12 @@
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: none;
   white-space: nowrap;
 }
 
-.my-requests-table button:hover {
+.my-requests-table button:hover,
+.my-requests-details-link:hover {
   border-color: #1f4d3f;
 }
 

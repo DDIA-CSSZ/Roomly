@@ -25,3 +25,8 @@ export function getRequestsForRole(role) {
   if (role === 'receptionist' || role === 'admin') return getAllRequests()
   return Promise.resolve([])
 }
+
+export async function getRequestByIdForRole(id, role) {
+  const requests = await getRequestsForRole(role)
+  return requests.find((request) => String(request.id) === String(id)) || null
+}

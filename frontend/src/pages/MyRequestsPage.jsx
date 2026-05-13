@@ -31,7 +31,6 @@ export default function MyRequestsPage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [expandedId, setExpandedId] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -43,7 +42,7 @@ export default function MyRequestsPage() {
       .catch((err) => {
         if (!cancelled) {
           setRequests([])
-          setError(err?.message || 'Nu am putut încărca cererile tale.')
+          setError(err?.message || 'Nu am putut incarca cererile tale.')
         }
       })
       .finally(() => {
@@ -60,10 +59,6 @@ export default function MyRequestsPage() {
     navigate('/login', { replace: true })
   }
 
-  function toggleDetails(requestId) {
-    setExpandedId((currentId) => (currentId === requestId ? null : requestId))
-  }
-
   return (
     <div className="dashboard-shell">
       <Sidebar user={user} onLogout={handleLogout} />
@@ -74,10 +69,10 @@ export default function MyRequestsPage() {
             <p>Guest requests</p>
             <h1>Cererile mele</h1>
             <span>
-              Urmărește solicitările trimise către echipa hotelului și statusul lor curent.
+              Urmareste solicitarile trimise catre echipa hotelului si statusul lor curent.
             </span>
           </div>
-          <Link to="/new-request">Cerere nouă</Link>
+          <Link to="/new-request">Cerere noua</Link>
         </header>
 
         <section className="my-requests-panel">
@@ -89,7 +84,7 @@ export default function MyRequestsPage() {
             <span>{requests.length} total</span>
           </div>
 
-          {loading && <div className="my-requests-state">Se încarcă cererile...</div>}
+          {loading && <div className="my-requests-state">Se incarca cererile...</div>}
 
           {!loading && error && (
             <div className="my-requests-state my-requests-state--error">{error}</div>
@@ -98,7 +93,7 @@ export default function MyRequestsPage() {
           {!loading && !error && requests.length === 0 && (
             <div className="my-requests-empty">
               <h2>Nu ai trimis nicio cerere momentan.</h2>
-              <p>Poți trimite rapid o solicitare pentru room service, housekeeping sau mentenanță.</p>
+              <p>Poti trimite rapid o solicitare pentru room service, housekeeping sau mentenanta.</p>
               <Link to="/new-request">Trimite prima cerere</Link>
             </div>
           )}
@@ -113,50 +108,38 @@ export default function MyRequestsPage() {
                     <th>Descriere</th>
                     <th>Camera</th>
                     <th>Status</th>
-                    <th>Data creării</th>
+                    <th>Data crearii</th>
                     <th>Personal asignat</th>
-                    <th>Acțiuni</th>
+                    <th>Actiuni</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((request) => {
-                    const isExpanded = expandedId === request.id
-
-                    return (
-                      <tr key={request.id}>
-                        <td>
-                          <strong>#{request.id}</strong>
-                        </td>
-                        <td>{request.service_category?.name || 'Serviciu'}</td>
-                        <td>
-                          <span className="my-requests-description">
-                            {isExpanded ? request.description : truncate(request.description)}
-                          </span>
-                          {isExpanded && (
-                            <dl className="my-requests-details">
-                              <dt>Actualizată</dt>
-                              <dd>{formatDate(request.updated_at)}</dd>
-                              <dt>Finalizată</dt>
-                              <dd>{request.completed_at ? formatDate(request.completed_at) : '-'}</dd>
-                            </dl>
-                          )}
-                        </td>
-                        <td>
-                          {request.room?.room_number ? `#${request.room.room_number}` : '-'}
-                        </td>
-                        <td>
-                          <StatusBadge status={request.status} />
-                        </td>
-                        <td>{formatDate(request.created_at)}</td>
-                        <td>{request.assigned_to?.full_name || 'Neasignat'}</td>
-                        <td>
-                          <button type="button" onClick={() => toggleDetails(request.id)}>
-                            {isExpanded ? 'Ascunde' : 'Vezi detalii'}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {requests.map((request) => (
+                    <tr key={request.id}>
+                      <td>
+                        <strong>#{request.id}</strong>
+                      </td>
+                      <td>{request.service_category?.name || 'Serviciu'}</td>
+                      <td>
+                        <span className="my-requests-description">
+                          {truncate(request.description)}
+                        </span>
+                      </td>
+                      <td>
+                        {request.room?.room_number ? `#${request.room.room_number}` : '-'}
+                      </td>
+                      <td>
+                        <StatusBadge status={request.status} />
+                      </td>
+                      <td>{formatDate(request.created_at)}</td>
+                      <td>{request.assigned_to?.full_name || 'Neasignat'}</td>
+                      <td>
+                        <Link className="my-requests-details-link" to={`/requests/${request.id}`}>
+                          Vezi detalii
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
