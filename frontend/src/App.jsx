@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
-import DashboardPlaceholder from './pages/DashboardPlaceholder'
+import DashboardPage from './pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 /**
@@ -25,7 +25,7 @@ export default function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardPlaceholder />
+                <DashboardPage />
               </ProtectedRoute>
             }
           />
