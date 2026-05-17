@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import { createRequest } from '../api/requests'
 import { getServiceCategories } from '../api/serviceCategories'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import './DashboardPage.css'
 import './NewRequestPage.css'
 
 const MIN_DESCRIPTION_LENGTH = 3
+
+function getUserRoomNumber(user) {
+  return user?.room?.room_number || user?.room_id
+}
 
 export default function NewRequestPage() {
   const { user, logout } = useAuth()
@@ -16,6 +20,7 @@ export default function NewRequestPage() {
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoryError, setCategoryError] = useState('')
   const [serviceCategoryId, setServiceCategoryId] = useState('')
+  const [priority, setPriority] = useState('normal')
   const [description, setDescription] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
@@ -24,6 +29,7 @@ export default function NewRequestPage() {
 
   const isGuest = user?.role === 'guest'
   const hasRoom = Boolean(user?.room_id)
+  const roomNumber = getUserRoomNumber(user)
 
   useEffect(() => {
     let cancelled = false
@@ -50,12 +56,16 @@ export default function NewRequestPage() {
   const roomMessage = useMemo(() => {
     if (!isGuest) return 'Pagina este pregătită pentru utilizatorii cu rol guest.'
     if (!hasRoom) return 'Contul tău nu are cameră asociată. Contactează recepția.'
-    return `Camera asociată contului tău: #${user.room_id}`
-  }, [hasRoom, isGuest, user?.room_id])
+    return `Camera asociată contului tău: #${roomNumber}`
+  }, [hasRoom, isGuest, roomNumber])
 
   function handleLogout() {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  if (user?.role && user.role !== 'guest') {
+    return <Navigate to="/dashboard" replace />
   }
 
   function validate() {
@@ -93,9 +103,11 @@ export default function NewRequestPage() {
     try {
       await createRequest({
         service_category_id: Number(serviceCategoryId),
+        priority,
         description: description.trim(),
       })
       setServiceCategoryId('')
+      setPriority('normal')
       setDescription('')
       setFieldErrors({})
       setSuccessMessage('Cererea a fost trimisă cu succes.')
@@ -159,6 +171,19 @@ export default function NewRequestPage() {
               </select>
               {fieldErrors.serviceCategoryId && <small>{fieldErrors.serviceCategoryId}</small>}
               {categoryError && <small>{categoryError}</small>}
+            </label>
+
+            <label>
+              <span>Prioritate</span>
+              <select
+                value={priority}
+                onChange={(event) => setPriority(event.target.value)}
+                disabled={submitting}
+              >
+                <option value="low">Scăzută</option>
+                <option value="normal">Normală</option>
+                <option value="urgent">Urgentă</option>
+              </select>
             </label>
 
             <label>

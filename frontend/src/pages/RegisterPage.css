@@ -100,6 +100,35 @@
   font-weight: 700;
 }
 
+.register__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.register__label-row span {
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.register__label-row button {
+  height: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.register__label-row button:hover {
+  color: var(--accent);
+}
+
 .register__form input,
 .register__form select {
   width: 100%;
@@ -139,7 +168,16 @@
   font-weight: 500 !important;
 }
 
-.register__form button,
+.register__note {
+  margin: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.register__form > button,
 .register__alert button {
   height: 48px;
   border: 0;
@@ -152,7 +190,7 @@
   cursor: pointer;
 }
 
-.register__form button:disabled {
+.register__form > button:disabled {
   opacity: 0.65;
   cursor: wait;
 }

@@ -1,17 +1,14 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   login as apiLogin,
   getCurrentUser as apiGetCurrentUser,
 } from '../api/auth'
 import { getToken, setToken } from '../api/client'
+import { AuthContext } from './AuthContextObject'
 
 const STORAGE_USER = 'roomly_user'
 
-const AuthContext = createContext(null)
-
 export function AuthProvider({ children }) {
-  // User-ul îl persistăm și-l rehidratăm la refresh, ca să nu blochezi UI-ul
-  // așteptând /auth/me la fiecare reîncărcare.
   const [user, setUser] = useState(() => {
     const raw = localStorage.getItem(STORAGE_USER)
     try {
@@ -22,9 +19,6 @@ export function AuthProvider({ children }) {
   })
 
   const [token, setTokenState] = useState(() => getToken())
-
-  // În paralel, dacă avem token la mount, îl re-validăm cu backend-ul.
-  // Dacă token-ul a expirat → curățăm storage-ul și forțăm re-login.
   const [bootstrapping, setBootstrapping] = useState(() => !!getToken())
 
   useEffect(() => {
@@ -32,6 +26,7 @@ export function AuthProvider({ children }) {
       setBootstrapping(false)
       return
     }
+
     let cancelled = false
     apiGetCurrentUser()
       .then((fresh) => {
@@ -41,7 +36,6 @@ export function AuthProvider({ children }) {
       })
       .catch(() => {
         if (cancelled) return
-        // Token invalid / expirat → logout silențios
         localStorage.removeItem(STORAGE_USER)
         setToken(null)
         setTokenState(null)
@@ -50,6 +44,7 @@ export function AuthProvider({ children }) {
       .finally(() => {
         if (!cancelled) setBootstrapping(false)
       })
+
     return () => {
       cancelled = true
     }
@@ -84,10 +79,4 @@ export function AuthProvider({ children }) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth trebuie folosit în interiorul <AuthProvider>')
-  return ctx
 }

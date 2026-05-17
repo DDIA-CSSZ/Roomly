@@ -194,7 +194,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 6px;
+}
+
+.field__inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field__inline-actions a {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.field__inline-actions a:hover {
+  color: var(--accent);
 }
 
 .field label {
@@ -320,4 +338,19 @@
 
 .login__footer-link a:hover {
   border-bottom-color: var(--accent);
+}
+
+.login__forgot-link {
+  width: fit-content;
+  display: block;
+  margin: 12px auto 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.login__forgot-link:hover {
+  color: var(--accent);
 }

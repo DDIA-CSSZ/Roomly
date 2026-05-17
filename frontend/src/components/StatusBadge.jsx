@@ -1,9 +1,9 @@
 const STATUS_LABELS = {
-  pending: 'Pending',
-  assigned: 'Assigned',
-  in_progress: 'In progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  pending: 'În așteptare',
+  assigned: 'Asignată',
+  in_progress: 'În lucru',
+  completed: 'Finalizată',
+  cancelled: 'Anulată',
 }
 
 export default function StatusBadge({ status }) {

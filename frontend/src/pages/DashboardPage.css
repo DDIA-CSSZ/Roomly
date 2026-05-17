@@ -57,6 +57,8 @@
   text-decoration: none;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .dashboard-sidebar__nav a.active,
@@ -67,6 +69,20 @@
 .dashboard-sidebar__nav button:disabled {
   color: rgba(239, 232, 218, 0.45);
   cursor: not-allowed;
+}
+
+.dashboard-sidebar__badge {
+  min-width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 7px;
+  background: #d8b56d;
+  color: #162820;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .dashboard-sidebar__footer {
@@ -327,6 +343,57 @@
   border-bottom: 1px solid #e4ded2;
 }
 
+.requests-panel__tools {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.requests-search {
+  display: grid;
+  gap: 6px;
+  min-width: 280px;
+}
+
+.requests-search span {
+  color: #706a60;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.requests-search input {
+  min-height: 38px;
+  border: 1px solid #cfc6b6;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #1b1b1b;
+  font: inherit;
+}
+
+.requests-filters {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.requests-filters select {
+  min-height: 36px;
+  border: 1px solid #cfc6b6;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #1b1b1b;
+  font: inherit;
+  font-size: 13px;
+}
+
 .request-table-wrap {
   overflow-x: auto;
 }
@@ -334,7 +401,7 @@
 .request-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 820px;
+  min-width: 980px;
 }
 
 .request-table th,
@@ -353,11 +420,11 @@
 }
 
 .request-table td strong,
-.request-table td span {
+.request-table td span:not(.status-badge):not(.priority-badge) {
   display: block;
 }
 
-.request-table td span {
+.request-table td span:not(.status-badge):not(.priority-badge) {
   color: #81796c;
   font-size: 12px;
 }
@@ -365,11 +432,15 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 26px;
+  justify-content: center;
+  width: fit-content;
+  min-height: 28px;
   border-radius: 999px;
-  padding: 0 10px;
+  padding: 0 12px;
   font-size: 12px;
   font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -398,6 +469,36 @@
   color: #7a2727;
 }
 
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.priority-badge--low {
+  background: #e8efe7;
+  color: #31553b;
+}
+
+.priority-badge--normal {
+  background: #ece6da;
+  color: #5d5141;
+}
+
+.priority-badge--urgent {
+  background: #f4dddd;
+  color: #8f2424;
+}
+
 .requests-empty {
   padding: 48px 24px;
   color: #706a60;
@@ -406,6 +507,162 @@
 
 .requests-empty--error {
   color: #9a2929;
+}
+
+.dashboard-action-alert {
+  border-bottom: 1px solid #e4ded2;
+  padding: 12px 24px;
+  background: #ddefdf;
+  color: #285a33;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dashboard-action-alert--error {
+  background: #fbeeee;
+  color: #9a2929;
+}
+
+.request-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.request-actions select {
+  min-height: 34px;
+  border: 1px solid #cfc6b6;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #1b1b1b;
+  font: inherit;
+}
+
+.request-priority-select {
+  min-height: 34px;
+  border: 1px solid #cfc6b6;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #1b1b1b;
+  font: inherit;
+}
+
+.request-actions button,
+.request-action-button,
+.request-action-link {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #1f4d3f;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.request-action-link {
+  border: 1px solid #cfc6b6;
+  background: #ffffff;
+  color: #1f4d3f;
+}
+
+.request-actions button:disabled,
+.request-action-button:disabled,
+.request-actions select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.request-action-muted {
+  color: #81796c;
+  font-size: 13px;
+}
+
+.app-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(22, 40, 32, 0.48);
+}
+
+.app-confirm-dialog {
+  width: min(460px, 100%);
+  border: 1px solid #e4ded2;
+  border-radius: 8px;
+  background: #fffdf9;
+  box-shadow: 0 26px 80px rgba(20, 18, 14, 0.24);
+  padding: 24px;
+}
+
+.app-confirm-dialog p,
+.app-confirm-dialog h2,
+.app-confirm-dialog span {
+  margin: 0;
+}
+
+.app-confirm-dialog p {
+  color: #7c5d2d;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.app-confirm-dialog h2 {
+  margin-top: 8px;
+  font-family: var(--sans);
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.app-confirm-dialog span {
+  display: block;
+  margin-top: 10px;
+  color: #706a60;
+  line-height: 1.5;
+}
+
+.app-confirm-dialog div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.app-confirm-dialog button {
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.app-confirm-secondary {
+  border: 1px solid #cfc6b6;
+  background: #ffffff;
+  color: #1f4d3f;
+}
+
+.app-confirm-danger {
+  border: 0;
+  background: #9a2929;
+  color: #ffffff;
+}
+
+.app-confirm-dialog button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 @media (max-width: 980px) {
@@ -428,10 +685,19 @@
 
   .dashboard-hero,
   .dashboard-toolbar,
-  .operations-panel {
+  .operations-panel,
+  .requests-panel__header {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .requests-panel__tools {
+    justify-content: stretch;
+  }
+
+  .requests-search {
+    min-width: 0;
   }
 
   .services-grid,

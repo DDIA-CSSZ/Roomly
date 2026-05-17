@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from models import RequestStatus, UserRole
+from models import RequestPriority, RequestStatus, UserRole
 
 
 # ============================================================
@@ -49,11 +49,19 @@ class UserUpdate(BaseModel):
     role: Optional[UserRole] = None
 
 
+class UserRoomMini(BaseModel):
+    id: int
+    room_number: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserResponse(UserBase):
     """Ce trimitem înapoi clientului. NU conține hashed_password."""
     id: int
     role: UserRole
     room_id: Optional[int] = None
+    room: Optional[UserRoomMini] = None
     is_active: bool
     created_at: datetime
 
@@ -64,6 +72,20 @@ class UserLogin(BaseModel):
     """Folosit doar dacă vrei JSON login. Pentru OAuth2 form-data, nu-i nevoie."""
     email: EmailStr
     password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetRequestResponse(BaseModel):
+    message: str
+    reset_token: Optional[str] = None
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: Annotated[str, Field(min_length=8, max_length=100)]
 
 
 # ============================================================
@@ -91,6 +113,15 @@ class RoomResponse(RoomBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RoomOccupancyResponse(RoomResponse):
+    occupied_by: Optional[UserResponse] = None
+    active_requests_count: int = 0
+
+
+class RoomCheckIn(BaseModel):
+    user_id: int
 
 
 # ============================================================
@@ -132,6 +163,14 @@ class RequestCreate(BaseModel):
     """
     service_category_id: int
     description: Annotated[str, Field(min_length=3, max_length=2000)]
+    priority: RequestPriority = RequestPriority.NORMAL
+
+
+class RequestUpdate(BaseModel):
+    """Payload pentru guest cand editeaza o cerere inca nepreluata."""
+    service_category_id: int
+    description: Annotated[str, Field(min_length=3, max_length=2000)]
+    priority: RequestPriority = RequestPriority.NORMAL
 
 
 class RequestAssign(BaseModel):
@@ -142,6 +181,14 @@ class RequestAssign(BaseModel):
 class RequestStatusUpdate(BaseModel):
     """Payload pentru actualizarea statusului (recepție sau staff)."""
     status: RequestStatus
+
+
+class RequestPriorityUpdate(BaseModel):
+    priority: RequestPriority
+
+
+class RequestCommentCreate(BaseModel):
+    body: Annotated[str, Field(min_length=2, max_length=2000)]
 
 
 # Schemele "embedded" pentru a oferi context bogat în RequestResponse,
@@ -168,11 +215,31 @@ class _ServiceCategoryMini(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RequestCommentResponse(BaseModel):
+    id: int
+    body: str
+    created_at: datetime
+    author: _UserMini
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RequestEventResponse(BaseModel):
+    id: int
+    event_type: str
+    message: str
+    created_at: datetime
+    actor: Optional[_UserMini] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class RequestResponse(BaseModel):
     """Răspuns complet pentru toate listările de cereri."""
     id: int
     description: str
     status: RequestStatus
+    priority: RequestPriority
     created_at: datetime
     updated_at: datetime
     completed_at: Optional[datetime] = None

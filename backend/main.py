@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from database import Base, engine
 from routers import auth_router, rooms_router, service_categories_router, requests_router
@@ -13,6 +14,18 @@ import models  # noqa: F401  (import cu efect secundar)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def ensure_lightweight_schema_updates() -> None:
+    """Aplică ajustări simple pentru baza locală SQLite fără tool de migrații."""
+    inspector = inspect(engine)
+    if "requests" in inspector.get_table_names():
+        request_columns = {column["name"] for column in inspector.get_columns("requests")}
+        if "priority" not in request_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE requests ADD COLUMN priority VARCHAR(10) NOT NULL DEFAULT 'NORMAL'")
+                )
 
 
 # ============================================================
@@ -26,6 +39,7 @@ async def lifespan(app: FastAPI):
     logger.info("Creating database tables (if not present)...")
     try:
         Base.metadata.create_all(bind=engine)
+        ensure_lightweight_schema_updates()
         logger.info("Database tables ready.")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")

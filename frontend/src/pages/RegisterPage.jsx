@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../api/auth'
-import { getRooms } from '../api/rooms'
 import './RegisterPage.css'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -12,38 +11,12 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [roomId, setRoomId] = useState('')
-  const [rooms, setRooms] = useState([])
-  const [roomsLoading, setRoomsLoading] = useState(true)
-  const [roomsMessage, setRoomsMessage] = useState('')
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    getRooms()
-      .then((data) => {
-        if (!cancelled) setRooms(Array.isArray(data) ? data : [])
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setRooms([])
-          setRoomsMessage('Camera poate fi alocata ulterior la receptie.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setRoomsLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const canSelectRoom = useMemo(() => rooms.length > 0, [rooms.length])
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   function validate() {
     const nextErrors = {}
@@ -57,17 +30,17 @@ export default function RegisterPage() {
     if (!trimmedEmail) {
       nextErrors.email = 'Emailul este obligatoriu.'
     } else if (!EMAIL_REGEX.test(trimmedEmail)) {
-      nextErrors.email = 'Adresa de email nu pare valida.'
+      nextErrors.email = 'Adresa de email nu pare validă.'
     }
 
     if (!password) {
       nextErrors.password = 'Parola este obligatorie.'
     } else if (password.length < 8) {
-      nextErrors.password = 'Parola trebuie sa aiba minimum 8 caractere.'
+      nextErrors.password = 'Parola trebuie să aibă minimum 8 caractere.'
     }
 
     if (!confirmPassword) {
-      nextErrors.confirmPassword = 'Confirma parola.'
+      nextErrors.confirmPassword = 'Confirmă parola.'
     } else if (confirmPassword !== password) {
       nextErrors.confirmPassword = 'Parolele nu coincid.'
     }
@@ -83,29 +56,22 @@ export default function RegisterPage() {
 
     if (!validate()) return
 
-    const payload = {
-      full_name: fullName.trim(),
-      email: email.trim(),
-      password,
-    }
-
-    if (roomId) {
-      payload.room_id = Number(roomId)
-    }
-
     setSubmitting(true)
     try {
-      await register(payload)
+      await register({
+        full_name: fullName.trim(),
+        email: email.trim(),
+        password,
+      })
       setFullName('')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
-      setRoomId('')
       setErrors({})
-      setSuccessMessage('Contul a fost creat cu succes.')
+      setSuccessMessage('Contul a fost creat cu succes. Camera poate fi alocată ulterior la recepție.')
     } catch (err) {
       if (err.status === 409) {
-        setSubmitError('Exista deja un cont cu acest email.')
+        setSubmitError('Există deja un cont cu acest email.')
       } else if (err.status === 0) {
         setSubmitError(err.message)
       } else {
@@ -124,9 +90,7 @@ export default function RegisterPage() {
           <small>Guest access</small>
         </header>
         <div>
-          <p>
-            Creeaza un cont pentru a trimite cereri catre echipa hotelului.
-          </p>
+          <p>Creează un cont pentru a trimite cereri către echipa hotelului.</p>
         </div>
       </aside>
 
@@ -136,8 +100,8 @@ export default function RegisterPage() {
 
           <header className="register__header">
             <p>Cont nou</p>
-            <h1>Creeaza cont</h1>
-            <span>Completeaza datele de mai jos. Rolul va fi setat automat ca guest.</span>
+            <h1>Creează cont</h1>
+            <span>Completează datele de mai jos. Rolul va fi setat automat ca guest.</span>
           </header>
 
           {successMessage && (
@@ -185,9 +149,18 @@ export default function RegisterPage() {
             </label>
 
             <label>
-              <span>Parola</span>
+              <div className="register__label-row">
+                <span>Parolă</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? 'Ascunde' : 'Arată'}
+                </button>
+              </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Minimum 8 caractere"
@@ -199,12 +172,21 @@ export default function RegisterPage() {
             </label>
 
             <label>
-              <span>Confirma parola</span>
+              <div className="register__label-row">
+                <span>Confirmă parola</span>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((current) => !current)}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? 'Ascunde' : 'Arată'}
+                </button>
+              </div>
               <input
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Repeta parola"
+                placeholder="Repetă parola"
                 autoComplete="new-password"
                 disabled={submitting}
                 aria-invalid={!!errors.confirmPassword}
@@ -212,32 +194,17 @@ export default function RegisterPage() {
               {errors.confirmPassword && <small>{errors.confirmPassword}</small>}
             </label>
 
-            <label>
-              <span>Camera</span>
-              <select
-                value={roomId}
-                onChange={(event) => setRoomId(event.target.value)}
-                disabled={submitting || roomsLoading || !canSelectRoom}
-              >
-                <option value="">
-                  {roomsLoading ? 'Se incarca camerele...' : 'Fara camera selectata'}
-                </option>
-                {rooms.map((room) => (
-                  <option key={room.id} value={room.id}>
-                    Camera #{room.room_number}
-                  </option>
-                ))}
-              </select>
-              {roomsMessage && <small className="register__hint">{roomsMessage}</small>}
-            </label>
+            <p className="register__note">
+              Camera se alocă de către recepție după crearea contului.
+            </p>
 
             <button type="submit" disabled={submitting}>
-              {submitting ? 'Se creeaza contul...' : 'Creeaza cont'}
+              {submitting ? 'Se creează contul...' : 'Creează cont'}
             </button>
           </form>
 
           <p className="register__footer">
-            Ai deja cont? <Link to="/login">Autentifica-te</Link>
+            Ai deja cont? <Link to="/login">Autentifică-te</Link>
           </p>
         </section>
       </main>

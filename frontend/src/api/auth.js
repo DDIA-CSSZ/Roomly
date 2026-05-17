@@ -57,3 +57,20 @@ export async function register(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export async function requestPasswordReset(email) {
+  return apiFetch('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function resetPassword(token, newPassword) {
+  return apiFetch('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      token,
+      new_password: newPassword,
+    }),
+  })
+}

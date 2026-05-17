@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import './DashboardPage.css'
 import './ProfilePage.css'
 
@@ -22,9 +22,14 @@ function formatAccountStatus(value) {
   return '-'
 }
 
+function getUserRoomNumber(user) {
+  return user?.room?.room_number || user?.room_id
+}
+
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const roomNumber = getUserRoomNumber(user)
 
   function handleLogout() {
     logout()
@@ -38,9 +43,9 @@ export default function ProfilePage() {
       <main className="profile-main">
         <section className="profile-card">
           <div className="profile-card__header">
-            <p>Roomly profile</p>
+            <p>Profil Roomly</p>
             <h1>Profil utilizator</h1>
-            <span>Informatiile contului autentificat in Roomly.</span>
+            <span>Informațiile contului autentificat în Roomly.</span>
           </div>
 
           <div className="profile-identity">
@@ -66,10 +71,10 @@ export default function ProfilePage() {
               <dt>Rol</dt>
               <dd className="profile-role">{user?.role || '-'}</dd>
             </div>
-            {user?.room_id && (
+            {roomNumber && (
               <div>
                 <dt>Camera</dt>
-                <dd>#{user.room_id}</dd>
+                <dd>#{roomNumber}</dd>
               </div>
             )}
             {'is_active' in (user || {}) && (
@@ -80,7 +85,7 @@ export default function ProfilePage() {
             )}
             {user?.created_at && (
               <div>
-                <dt>Data crearii contului</dt>
+                <dt>Data creării contului</dt>
                 <dd>{formatDate(user.created_at)}</dd>
               </div>
             )}
@@ -88,7 +93,7 @@ export default function ProfilePage() {
 
           <div className="profile-actions">
             <button type="button" onClick={handleLogout}>
-              Logout
+              Deconectare
             </button>
           </div>
         </section>

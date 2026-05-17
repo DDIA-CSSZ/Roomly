@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import ServiceCard from '../components/ServiceCard'
 import RequestTable from '../components/RequestTable'
-import { useAuth } from '../context/AuthContext'
-import { getRequestsForRole } from '../api/requests'
+import { useAuth } from '../context/useAuth'
+import {
+  assignRequest,
+  getRequestsForRole,
+  updateRequestPriority,
+  updateRequestStatus,
+} from '../api/requests'
+import { getStaffUsers } from '../api/users'
 import './DashboardPage.css'
 
 const SERVICES = [
@@ -15,19 +21,19 @@ const SERVICES = [
     tone: 'sage',
   },
   {
-    title: 'Întreținere cameră',
+    title: 'Housekeeping',
     description: 'Curățenie, schimbare lenjerie și pregătirea camerei.',
     icon: 'HK',
     tone: 'blue',
   },
   {
-    title: 'Mentenanță',
+    title: 'Maintenance',
     description: 'Sesizări tehnice pentru instalații, mobilier sau echipamente.',
     icon: 'MT',
     tone: 'amber',
   },
   {
-    title: 'Facilități',
+    title: 'Consumables/Amenities',
     description: 'Prosoape, săpun, apă, papuci și alte consumabile.',
     icon: 'AM',
     tone: 'rose',
@@ -36,7 +42,7 @@ const SERVICES = [
 
 const ROLE_COPY = {
   guest: {
-    eyebrow: 'Guest dashboard',
+    eyebrow: 'Dashboard guest',
     title: 'Servicii pentru sejurul tău',
     description: 'Alege un serviciu și urmărește statusul cererilor trimise.',
     panelTitle: 'Cererile tale recente',
@@ -44,28 +50,28 @@ const ROLE_COPY = {
     roleText: 'Ai acces la servicii hoteliere și la istoricul cererilor tale.',
   },
   receptionist: {
-    eyebrow: 'Reception dashboard',
+    eyebrow: 'Dashboard recepție',
     title: 'Gestionare cereri hotel',
-    description: 'Monitorizează cererile primite și pregătește alocarea lor către staff.',
+    description: 'Monitorizează cererile primite și alocă-le către staff.',
     panelTitle: 'Cereri recente',
-    rolePanel: 'Zona receptie',
-    roleText: 'Vezi toate cererile, camerele și statusurile operaționale.',
+    rolePanel: 'Zona recepție',
+    roleText: 'Asignează cereri către staff și urmărește fluxul operațional.',
   },
   staff: {
-    eyebrow: 'Staff dashboard',
+    eyebrow: 'Dashboard staff',
     title: 'Cererile asignate ție',
-    description: 'Prioritizează cererile primite și urmărește lucrările active.',
+    description: 'Prioritizează cererile primite și actualizează statusul lucrărilor.',
     panelTitle: 'Task-uri asignate',
     rolePanel: 'Zona staff',
     roleText: 'Lista este filtrată la cererile alocate contului tău.',
   },
   admin: {
-    eyebrow: 'Admin dashboard',
+    eyebrow: 'Dashboard admin',
     title: 'Administrare Roomly',
     description: 'Ai vizibilitate asupra cererilor și a fluxului operațional.',
     panelTitle: 'Toate cererile recente',
     rolePanel: 'Zona administrare',
-    roleText: 'Pregătit pentru administrarea utilizatorilor, camerelor și serviciilor.',
+    roleText: 'Asignează cereri și monitorizează statusurile operaționale.',
   },
 }
 
@@ -73,51 +79,185 @@ function countByStatus(requests, status) {
   return requests.filter((request) => request.status === status).length
 }
 
+function normalizeSearchValue(value) {
+  return String(value || '')
+    .toLocaleLowerCase('ro-RO')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function requestMatchesSearch(request, normalizedSearch) {
+  if (!normalizedSearch) return true
+  return normalizeSearchValue(request.service_category?.name).includes(normalizedSearch)
+}
+
+function getUserRoomNumber(user) {
+  return user?.room?.room_number || user?.room_id
+}
+
 export default function DashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [requests, setRequests] = useState([])
+  const [requestSearch, setRequestSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('')
+  const [serviceFilter, setServiceFilter] = useState('')
+  const [roomFilter, setRoomFilter] = useState('')
+  const [staffUsers, setStaffUsers] = useState([])
+  const [selectedStaff, setSelectedStaff] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
+  const [actionLoading, setActionLoading] = useState('')
 
   const role = user?.role || 'guest'
   const copy = ROLE_COPY[role] || ROLE_COPY.guest
+  const canAssign = role === 'receptionist' || role === 'admin'
+  const normalizedRequestSearch = normalizeSearchValue(requestSearch.trim())
+  const userRoomNumber = getUserRoomNumber(user)
+
+  const loadRequests = useCallback(() => {
+    setLoading(true)
+    setError('')
+
+    return getRequestsForRole(role)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : []
+        setRequests(list)
+        setSelectedStaff((current) => {
+          const next = { ...current }
+          list.forEach((request) => {
+            if (request.assigned_to?.id) {
+              next[request.id] = String(request.assigned_to.id)
+            }
+          })
+          return next
+        })
+      })
+      .catch((err) => {
+        setRequests([])
+        setError(err?.message || 'Nu am putut încărca cererile.')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [role])
 
   useEffect(() => {
     let cancelled = false
 
-    getRequestsForRole(role)
-      .then((data) => {
-        if (!cancelled) setRequests(Array.isArray(data) ? data : [])
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setRequests([])
-          setError(err?.message || 'Nu am putut încărca cererile.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+    loadRequests()
+
+    if (canAssign) {
+      getStaffUsers()
+        .then((data) => {
+          if (!cancelled) setStaffUsers(Array.isArray(data) ? data : [])
+        })
+        .catch(() => {
+          if (!cancelled) setStaffUsers([])
+        })
+    } else {
+      setStaffUsers([])
+    }
 
     return () => {
       cancelled = true
     }
-  }, [role])
+  }, [canAssign, loadRequests])
 
   const stats = useMemo(
     () => [
-      { label: 'Pending', value: countByStatus(requests, 'pending') },
-      { label: 'Assigned', value: countByStatus(requests, 'assigned') },
-      { label: 'In progress', value: countByStatus(requests, 'in_progress') },
-      { label: 'Completed', value: countByStatus(requests, 'completed') },
+      { label: 'În așteptare', value: countByStatus(requests, 'pending') },
+      { label: 'Asignate', value: countByStatus(requests, 'assigned') },
+      { label: 'În lucru', value: countByStatus(requests, 'in_progress') },
+      { label: 'Finalizate', value: countByStatus(requests, 'completed') },
     ],
     [requests],
   )
 
+  const serviceOptions = useMemo(
+    () => [...new Set(requests.map((request) => request.service_category?.name).filter(Boolean))].sort(),
+    [requests],
+  )
+
+  const roomOptions = useMemo(
+    () => [...new Set(requests.map((request) => request.room?.room_number).filter(Boolean))].sort(),
+    [requests],
+  )
+
+  const filteredRequests = useMemo(() => {
+    const priorityRank = { urgent: 0, normal: 1, low: 2 }
+
+    return requests
+      .filter((request) => requestMatchesSearch(request, normalizedRequestSearch))
+      .filter((request) => (statusFilter ? request.status === statusFilter : true))
+      .filter((request) => (priorityFilter ? (request.priority || 'normal') === priorityFilter : true))
+      .filter((request) => (serviceFilter ? request.service_category?.name === serviceFilter : true))
+      .filter((request) => (roomFilter ? request.room?.room_number === roomFilter : true))
+      .sort((a, b) => {
+        const priorityDiff = (priorityRank[a.priority || 'normal'] ?? 1) - (priorityRank[b.priority || 'normal'] ?? 1)
+        if (priorityDiff !== 0) return priorityDiff
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      })
+  }, [normalizedRequestSearch, priorityFilter, requests, roomFilter, serviceFilter, statusFilter])
+
   function handleLogout() {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  function handleSelectStaff(requestId, staffId) {
+    setSelectedStaff((current) => ({ ...current, [requestId]: staffId }))
+  }
+
+  async function handleAssignRequest(requestId) {
+    const staffId = selectedStaff[requestId]
+    if (!staffId) return
+
+    setActionLoading(String(requestId))
+    setActionError('')
+    setActionMessage('')
+    try {
+      await assignRequest(requestId, staffId)
+      setActionMessage('Cererea a fost asignată.')
+      await loadRequests()
+    } catch (err) {
+      setActionError(err?.message || 'Nu am putut asigna cererea.')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  async function handleUpdateStatus(requestId, status) {
+    setActionLoading(String(requestId))
+    setActionError('')
+    setActionMessage('')
+    try {
+      await updateRequestStatus(requestId, status)
+      setActionMessage('Statusul cererii a fost actualizat.')
+      await loadRequests()
+    } catch (err) {
+      setActionError(err?.message || 'Nu am putut actualiza statusul.')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  async function handleUpdatePriority(requestId, priority) {
+    setActionLoading(String(requestId))
+    setActionError('')
+    setActionMessage('')
+    try {
+      await updateRequestPriority(requestId, priority)
+      setActionMessage('Prioritatea cererii a fost actualizată.')
+      await loadRequests()
+    } catch (err) {
+      setActionError(err?.message || 'Nu am putut actualiza prioritatea.')
+    } finally {
+      setActionLoading('')
+    }
   }
 
   return (
@@ -137,19 +277,21 @@ export default function DashboardPage() {
             <span>{user?.email}</span>
             <div>
               <small>{role}</small>
-              {user?.room_id && <small>Camera #{user.room_id}</small>}
+              {userRoomNumber && <small>Camera #{userRoomNumber}</small>}
             </div>
           </div>
         </header>
 
-        <section className="dashboard-toolbar" aria-label="Actiuni dashboard">
+        <section className="dashboard-toolbar" aria-label="Acțiuni dashboard">
           <div>
             <h2>{copy.title}</h2>
             <p>{copy.roleText}</p>
           </div>
-          <Link className="dashboard-toolbar__button" to="/new-request">
-            Cerere nouă
-          </Link>
+          {role === 'guest' && (
+            <Link className="dashboard-toolbar__button" to="/new-request">
+              Cerere nouă
+            </Link>
+          )}
         </section>
 
         {role === 'guest' ? (
@@ -182,9 +324,75 @@ export default function DashboardPage() {
               <p>Activitate</p>
               <h2>{copy.panelTitle}</h2>
             </div>
-            <span>{requests.length} total</span>
+            <div className="requests-panel__tools">
+              <span>
+                {filteredRequests.length === requests.length
+                  ? `${requests.length} total`
+                  : `${filteredRequests.length} din ${requests.length}`}
+              </span>
+              <label className="requests-search" htmlFor="dashboard-request-search">
+                <span>Caută cereri</span>
+                <input
+                  id="dashboard-request-search"
+                  value={requestSearch}
+                  onChange={(event) => setRequestSearch(event.target.value)}
+                  placeholder="Caută după serviciu..."
+                />
+              </label>
+              <div className="requests-filters" aria-label="Filtre cereri">
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="">Toate statusurile</option>
+                  <option value="pending">În așteptare</option>
+                  <option value="assigned">Asignate</option>
+                  <option value="in_progress">În lucru</option>
+                  <option value="completed">Finalizate</option>
+                  <option value="cancelled">Anulate</option>
+                </select>
+                <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+                  <option value="">Toate prioritățile</option>
+                  <option value="urgent">Urgentă</option>
+                  <option value="normal">Normală</option>
+                  <option value="low">Scăzută</option>
+                </select>
+                <select value={serviceFilter} onChange={(event) => setServiceFilter(event.target.value)}>
+                  <option value="">Toate serviciile</option>
+                  {serviceOptions.map((service) => (
+                    <option key={service} value={service}>
+                      {service}
+                    </option>
+                  ))}
+                </select>
+                <select value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
+                  <option value="">Toate camerele</option>
+                  {roomOptions.map((roomNumber) => (
+                    <option key={roomNumber} value={roomNumber}>
+                      #{roomNumber}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
-          <RequestTable requests={requests} role={role} loading={loading} error={error} />
+
+          {(actionMessage || actionError) && (
+            <div className={`dashboard-action-alert ${actionError ? 'dashboard-action-alert--error' : ''}`}>
+              {actionError || actionMessage}
+            </div>
+          )}
+
+          <RequestTable
+            requests={filteredRequests}
+            role={role}
+            loading={loading}
+            error={error}
+            staffUsers={staffUsers}
+            selectedStaff={selectedStaff}
+            actionLoading={actionLoading}
+            onSelectStaff={handleSelectStaff}
+            onAssignRequest={handleAssignRequest}
+            onUpdateStatus={handleUpdateStatus}
+            onUpdatePriority={handleUpdatePriority}
+          />
         </section>
       </main>
     </div>
