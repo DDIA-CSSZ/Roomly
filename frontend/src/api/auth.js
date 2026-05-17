@@ -50,3 +50,27 @@ export async function login(email, password) {
 export async function getCurrentUser() {
   return apiFetch('/auth/me')
 }
+
+export async function register(payload) {
+  return apiFetch('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function requestPasswordReset(email) {
+  return apiFetch('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function resetPassword(token, newPassword) {
+  return apiFetch('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      token,
+      new_password: newPassword,
+    }),
+  })
+}

@@ -32,6 +32,13 @@ class RequestStatus(str, enum.Enum):
     CANCELLED = "cancelled"        # anulată (guest sau recepție)
 
 
+class RequestPriority(str, enum.Enum):
+    """Nivelul de prioritate operațională al unei cereri."""
+    LOW = "low"
+    NORMAL = "normal"
+    URGENT = "urgent"
+
+
 # ============================================================
 # ROOM
 # ============================================================
@@ -146,6 +153,13 @@ class Request(Base):
 
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
+    priority: Mapped[RequestPriority] = mapped_column(
+        SQLEnum(RequestPriority),
+        nullable=False,
+        default=RequestPriority.NORMAL,
+        index=True,
+    )
+
     status: Mapped[RequestStatus] = mapped_column(
         SQLEnum(RequestStatus),
         nullable=False,
@@ -175,3 +189,50 @@ class Request(Base):
     )
     room: Mapped["Room"] = relationship(back_populates="requests")
     service_category: Mapped["ServiceCategory"] = relationship(back_populates="requests")
+    comments: Mapped[List["RequestComment"]] = relationship(
+        back_populates="request",
+        cascade="all, delete-orphan",
+    )
+    events: Mapped[List["RequestEvent"]] = relationship(
+        back_populates="request",
+        cascade="all, delete-orphan",
+    )
+
+
+class RequestComment(Base):
+    __tablename__ = "request_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("requests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+    request: Mapped["Request"] = relationship(back_populates="comments")
+    author: Mapped["User"] = relationship(foreign_keys=[author_id])
+
+
+class RequestEvent(Base):
+    __tablename__ = "request_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("requests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    actor_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    message: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+    request: Mapped["Request"] = relationship(back_populates="events")
+    actor: Mapped[Optional["User"]] = relationship(foreign_keys=[actor_id])

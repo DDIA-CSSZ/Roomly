@@ -1,4 +1,8 @@
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
+
+function getUserRoomNumber(user) {
+  return user?.room?.room_number || user?.room_id
+}
 
 /**
  * Pagină placeholder de dashboard. Nu construim aici nimic real —
@@ -7,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
  */
 export default function DashboardPlaceholder() {
   const { user, logout } = useAuth()
+  const roomNumber = getUserRoomNumber(user)
 
   return (
     <div
@@ -81,10 +86,10 @@ export default function DashboardPlaceholder() {
               {user?.role}
             </code>
           </dd>
-          {user?.room_id && (
+          {roomNumber && (
             <>
               <dt>Cameră</dt>
-              <dd style={{ margin: 0, color: 'var(--text-h)' }}>#{user.room_id}</dd>
+              <dd style={{ margin: 0, color: 'var(--text-h)' }}>#{roomNumber}</dd>
             </>
           )}
         </dl>

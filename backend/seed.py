@@ -11,18 +11,19 @@ Populează:
     - 1 receptionist
     - 2 staff (housekeeping + maintenance)
     - 1 guest demo (alocat la camera 101)
-    - 5 camere (101-105)
+    - 10 camere (101-105, 201-205)
     - 4 categorii de servicii (Room Service, Housekeeping, Maintenance, Consumables)
 """
 
 import logging
 import sys
 
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from config import settings
 from database import Base, SessionLocal, engine
-from models import Room, ServiceCategory, User, UserRole
+from models import Request, RequestPriority, RequestStatus, Room, ServiceCategory, User, UserRole
 from security import hash_password
 
 # Importurile cu efect secundar (înregistrare modele în Base.metadata)
@@ -35,6 +36,17 @@ logging.basicConfig(
 logger = logging.getLogger("seed")
 
 
+def ensure_lightweight_schema_updates() -> None:
+    inspector = inspect(engine)
+    if "requests" in inspector.get_table_names():
+        request_columns = {column["name"] for column in inspector.get_columns("requests")}
+        if "priority" not in request_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE requests ADD COLUMN priority VARCHAR(10) NOT NULL DEFAULT 'NORMAL'")
+                )
+
+
 # ============================================================
 # DATE DE SEED
 # ============================================================
@@ -43,8 +55,13 @@ ROOMS_DATA = [
     {"room_number": "101", "floor": 1},
     {"room_number": "102", "floor": 1},
     {"room_number": "103", "floor": 1},
+    {"room_number": "104", "floor": 1},
+    {"room_number": "105", "floor": 1},
     {"room_number": "201", "floor": 2},
     {"room_number": "202", "floor": 2},
+    {"room_number": "203", "floor": 2},
+    {"room_number": "204", "floor": 2},
+    {"room_number": "205", "floor": 2},
 ]
 
 CATEGORIES_DATA = [
@@ -90,6 +107,33 @@ USERS_DATA = [
         "password": settings.SEED_DEFAULT_PASSWORD,
         "role": UserRole.GUEST,
         "room_number": "101",   # cazat în camera 101
+    },
+]
+
+REQUESTS_DATA = [
+    {
+        "guest_email": "andrei.pop@example.com",
+        "category_name": "Room Service",
+        "description": "As dori doua sticle de apa plata in camera.",
+        "priority": RequestPriority.NORMAL,
+        "status": RequestStatus.PENDING,
+        "assigned_to_email": None,
+    },
+    {
+        "guest_email": "andrei.pop@example.com",
+        "category_name": "Housekeeping",
+        "description": "Avem nevoie de prosoape curate si schimbarea lenjeriei.",
+        "priority": RequestPriority.LOW,
+        "status": RequestStatus.ASSIGNED,
+        "assigned_to_email": "mihai.rusu@roomly.com",
+    },
+    {
+        "guest_email": "andrei.pop@example.com",
+        "category_name": "Maintenance",
+        "description": "Aerul conditionat nu raceste suficient.",
+        "priority": RequestPriority.URGENT,
+        "status": RequestStatus.IN_PROGRESS,
+        "assigned_to_email": "radu.tehnic@roomly.com",
     },
 ]
 
@@ -146,6 +190,48 @@ def seed_user(db: Session, data: dict, rooms_by_number: dict[str, Room]) -> tupl
     return user, True
 
 
+def seed_request(
+    db: Session,
+    data: dict,
+    users_by_email: dict[str, User],
+    categories_by_name: dict[str, ServiceCategory],
+) -> tuple[Request | None, bool]:
+    guest = users_by_email.get(data["guest_email"])
+    category = categories_by_name.get(data["category_name"])
+    if guest is None or category is None or guest.room_id is None:
+        return None, False
+
+    existing = (
+        db.query(Request)
+        .filter(
+            Request.guest_id == guest.id,
+            Request.service_category_id == category.id,
+            Request.description == data["description"],
+        )
+        .first()
+    )
+    if existing:
+        return existing, False
+
+    assigned_to_id = None
+    if data["assigned_to_email"]:
+        assigned_user = users_by_email.get(data["assigned_to_email"])
+        assigned_to_id = assigned_user.id if assigned_user else None
+
+    request = Request(
+        guest_id=guest.id,
+        room_id=guest.room_id,
+        service_category_id=category.id,
+        description=data["description"],
+        priority=data["priority"],
+        status=data["status"],
+        assigned_to_id=assigned_to_id,
+    )
+    db.add(request)
+    db.flush()
+    return request, True
+
+
 # ============================================================
 # MAIN
 # ============================================================
@@ -153,6 +239,7 @@ def seed_user(db: Session, data: dict, rooms_by_number: dict[str, Room]) -> tupl
 def run_seed() -> None:
     logger.info("Asigurăm că tabelele există...")
     Base.metadata.create_all(bind=engine)
+    ensure_lightweight_schema_updates()
 
     db: Session = SessionLocal()
     try:
@@ -169,9 +256,11 @@ def run_seed() -> None:
 
         # --- SERVICE CATEGORIES ---
         logger.info("Seeding service categories...")
+        categories_by_name: dict[str, ServiceCategory] = {}
         categories_created = 0
         for data in CATEGORIES_DATA:
-            _, created = seed_category(db, data)
+            category, created = seed_category(db, data)
+            categories_by_name[category.name] = category
             if created:
                 categories_created += 1
         logger.info(
@@ -181,12 +270,26 @@ def run_seed() -> None:
 
         # --- USERS ---
         logger.info("Seeding users...")
+        users_by_email: dict[str, User] = {}
         users_created = 0
         for data in USERS_DATA:
-            _, created = seed_user(db, data, rooms_by_number)
+            user, created = seed_user(db, data, rooms_by_number)
+            users_by_email[user.email] = user
             if created:
                 users_created += 1
         logger.info(f"  Users: {users_created} creați, {len(USERS_DATA) - users_created} deja existenți.")
+
+        # --- REQUESTS ---
+        logger.info("Seeding demo requests...")
+        requests_created = 0
+        for data in REQUESTS_DATA:
+            _, created = seed_request(db, data, users_by_email, categories_by_name)
+            if created:
+                requests_created += 1
+        logger.info(
+            f"  Requests: {requests_created} create, "
+            f"{len(REQUESTS_DATA) - requests_created} deja existente."
+        )
 
         # Commit unic la final — fie totul, fie nimic.
         db.commit()

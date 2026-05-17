@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import './LoginPage.css'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -16,8 +16,6 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // După login, ducem userul de unde a venit (dacă a fost redirect din ProtectedRoute),
-  // altfel pe /dashboard.
   const redirectTo = location.state?.from?.pathname || '/dashboard'
 
   async function handleSubmit(e) {
@@ -42,7 +40,6 @@ export default function LoginPage() {
       await login(email.trim(), password)
       navigate(redirectTo, { replace: true })
     } catch (err) {
-      // Mapăm erorile backend-ului în mesaje umane.
       if (err.status === 401) {
         setError('Email sau parolă incorectă.')
       } else if (err.status === 403) {
@@ -59,7 +56,6 @@ export default function LoginPage() {
 
   return (
     <div className="login">
-      {/* ─────────────────────────── LEFT BRAND PANEL ─────────────────────────── */}
       <aside className="login__brand" aria-hidden="true">
         <div className="login__brand-noise" />
 
@@ -69,7 +65,6 @@ export default function LoginPage() {
         </header>
 
         <div className="login__brand-art">
-          {/* Stylized hotel key card on a tag — line art, white on moss */}
           <svg
             viewBox="0 0 320 320"
             xmlns="http://www.w3.org/2000/svg"
@@ -79,23 +74,11 @@ export default function LoginPage() {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {/* Tassel cord */}
             <path d="M160 24 C 160 48, 196 60, 196 92" opacity="0.55" />
-            {/* Card body — rotated slightly */}
             <g transform="rotate(8 196 200)">
-              <rect
-                x="116"
-                y="92"
-                width="160"
-                height="216"
-                rx="10"
-                ry="10"
-              />
-              {/* hole */}
+              <rect x="116" y="92" width="160" height="216" rx="10" ry="10" />
               <circle cx="196" cy="108" r="4.5" />
-              {/* embossed bar */}
               <rect x="132" y="140" width="128" height="2" opacity="0.6" />
-              {/* room number block */}
               <text
                 x="196"
                 y="208"
@@ -122,7 +105,6 @@ export default function LoginPage() {
               >
                 CAMERĂ · ROOM
               </text>
-              {/* bottom accent line */}
               <path d="M148 282 L 244 282" opacity="0.5" />
             </g>
           </svg>
@@ -138,7 +120,6 @@ export default function LoginPage() {
         </footer>
       </aside>
 
-      {/* ─────────────────────────── RIGHT FORM PANEL ─────────────────────────── */}
       <main className="login__form-panel">
         <div className="login__form-container">
           <div className="login__mobile-wordmark">Roomly</div>
@@ -196,18 +177,17 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              className="login__submit"
-              disabled={submitting}
-            >
-              {submitting ? 'Se autentifică…' : 'Autentificare'}
+            <button type="submit" className="login__submit" disabled={submitting}>
+              {submitting ? 'Se autentifică...' : 'Autentificare'}
             </button>
+
+            <Link className="login__forgot-link" to="/forgot-password">
+              Am uitat parola
+            </Link>
           </form>
 
           <p className="login__footer-link">
-            Nu ai un cont?{' '}
-            <Link to="/register">Creează contul aici →</Link>
+            Nu ai un cont? <Link to="/register">Creează contul aici →</Link>
           </p>
         </div>
       </main>

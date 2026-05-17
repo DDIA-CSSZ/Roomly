@@ -6,12 +6,17 @@ from sqlalchemy.orm import Session, joinedload
 
 from auth import CurrentUser, require_role
 from database import get_db
-from models import Request, RequestStatus, ServiceCategory, User, UserRole
+from models import Request, RequestComment, RequestEvent, RequestStatus, ServiceCategory, User, UserRole
 from schemas import (
     RequestAssign,
+    RequestCommentCreate,
+    RequestCommentResponse,
     RequestCreate,
+    RequestEventResponse,
+    RequestPriorityUpdate,
     RequestResponse,
     RequestStatusUpdate,
+    RequestUpdate,
 )
 
 router = APIRouter(prefix="/requests", tags=["Requests"])
@@ -39,6 +44,20 @@ STAFF_ALLOWED_TRANSITIONS: dict[RequestStatus, set[RequestStatus]] = {
     RequestStatus.IN_PROGRESS: {RequestStatus.COMPLETED},
 }
 
+STATUS_LABELS = {
+    RequestStatus.PENDING: "În așteptare",
+    RequestStatus.ASSIGNED: "Asignată",
+    RequestStatus.IN_PROGRESS: "În lucru",
+    RequestStatus.COMPLETED: "Finalizată",
+    RequestStatus.CANCELLED: "Anulată",
+}
+
+PRIORITY_LABELS = {
+    "low": "Scăzută",
+    "normal": "Normală",
+    "urgent": "Urgentă",
+}
+
 
 # ============================================================
 # HELPER pentru eager loading
@@ -51,6 +70,33 @@ def _request_query(db: Session):
         joinedload(Request.service_category),
         joinedload(Request.assigned_to),
     )
+
+
+def _add_request_event(
+    db: Session,
+    request_id: int,
+    actor_id: int | None,
+    event_type: str,
+    message: str,
+) -> RequestEvent:
+    event = RequestEvent(
+        request_id=request_id,
+        actor_id=actor_id,
+        event_type=event_type,
+        message=message,
+    )
+    db.add(event)
+    return event
+
+
+def _can_access_request(req: Request, user: User) -> bool:
+    if user.role in (UserRole.RECEPTIONIST, UserRole.ADMIN):
+        return True
+    if user.role == UserRole.GUEST:
+        return req.guest_id == user.id
+    if user.role == UserRole.STAFF:
+        return req.assigned_to_id == user.id
+    return False
 
 
 # ============================================================
@@ -101,9 +147,18 @@ def create_request(
         room_id=current_user.room_id,
         service_category_id=payload.service_category_id,
         description=payload.description,
+        priority=payload.priority,
         status=RequestStatus.PENDING,
     )
     db.add(new_request)
+    db.flush()
+    _add_request_event(
+        db,
+        new_request.id,
+        current_user.id,
+        "created",
+        "Cererea a fost creată.",
+    )
     db.commit()
     db.refresh(new_request)
 
@@ -208,6 +263,118 @@ def list_assigned_requests(
 # 5. PATCH /requests/{id}/assign — Recepție alocă unui staff
 # ============================================================
 
+@router.get(
+    "/{request_id}",
+    response_model=RequestResponse,
+    summary="Get one request by id with role-based access",
+)
+def get_request(
+    request_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
+) -> Request:
+    """Returneaza o cerere individuala, respectand accesul fiecarui rol."""
+    req = _request_query(db).filter(Request.id == request_id).first()
+    if req is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    if current_user.role == UserRole.GUEST and req.guest_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    if current_user.role == UserRole.STAFF and req.assigned_to_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    return req
+
+
+@router.patch(
+    "/{request_id}",
+    response_model=RequestResponse,
+    summary="Edit one of my pending requests (guest only)",
+)
+def update_my_request(
+    request_id: int,
+    payload: RequestUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(UserRole.GUEST))],
+) -> Request:
+    """Guest-ul poate edita doar cererile proprii ramase in status PENDING."""
+    req = db.query(Request).filter(Request.id == request_id).first()
+    if req is None or req.guest_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    if req.status != RequestStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only pending requests can be edited.",
+        )
+
+    category = db.query(ServiceCategory).filter(
+        ServiceCategory.id == payload.service_category_id
+    ).first()
+    if category is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Service category with id {payload.service_category_id} does not exist.",
+        )
+    if not category.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The selected service category is not currently available.",
+        )
+
+    req.service_category_id = payload.service_category_id
+    req.description = payload.description
+    req.priority = payload.priority
+    _add_request_event(db, req.id, current_user.id, "updated", "Cererea a fost actualizată.")
+    db.commit()
+
+    return _request_query(db).filter(Request.id == request_id).first()
+
+
+@router.patch(
+    "/{request_id}/cancel",
+    response_model=RequestResponse,
+    summary="Cancel one of my requests (guest only)",
+)
+def cancel_my_request(
+    request_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(UserRole.GUEST))],
+) -> Request:
+    """Guest-ul poate anula cererile proprii pana cand sunt in lucru."""
+    req = db.query(Request).filter(Request.id == request_id).first()
+    if req is None or req.guest_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    if req.status not in (RequestStatus.PENDING, RequestStatus.ASSIGNED):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only pending or assigned requests can be cancelled.",
+        )
+
+    req.status = RequestStatus.CANCELLED
+    _add_request_event(db, req.id, current_user.id, "cancelled", "Cererea a fost anulată.")
+    db.commit()
+
+    return _request_query(db).filter(Request.id == request_id).first()
+
+
 @router.patch(
     "/{request_id}/assign",
     response_model=RequestResponse,
@@ -265,6 +432,13 @@ def assign_request(
 
     req.assigned_to_id = target.id
     req.status = RequestStatus.ASSIGNED
+    _add_request_event(
+        db,
+        req.id,
+        _user.id,
+        "assigned",
+        f"Cererea a fost asignată către {target.full_name}.",
+    )
     db.commit()
 
     return _request_query(db).filter(Request.id == request_id).first()
@@ -353,5 +527,146 @@ def update_request_status(
     if new_status == RequestStatus.COMPLETED:
         req.completed_at = datetime.now(timezone.utc)
 
+    _add_request_event(
+        db,
+        req.id,
+        current_user.id,
+        "status",
+        f"Statusul a fost schimbat din {STATUS_LABELS[current_status]} în {STATUS_LABELS[new_status]}.",
+    )
     db.commit()
     return _request_query(db).filter(Request.id == request_id).first()
+
+
+@router.patch(
+    "/{request_id}/priority",
+    response_model=RequestResponse,
+    summary="Update request priority (receptionist + admin)",
+)
+def update_request_priority(
+    request_id: int,
+    payload: RequestPriorityUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(UserRole.RECEPTIONIST, UserRole.ADMIN))],
+) -> Request:
+    req = db.query(Request).filter(Request.id == request_id).first()
+    if req is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    old_priority = req.priority
+    req.priority = payload.priority
+    _add_request_event(
+        db,
+        req.id,
+        current_user.id,
+        "priority",
+        (
+            "Prioritatea a fost schimbată din "
+            f"{PRIORITY_LABELS[old_priority.value]} în {PRIORITY_LABELS[payload.priority.value]}."
+        ),
+    )
+    db.commit()
+    return _request_query(db).filter(Request.id == request_id).first()
+
+
+@router.get(
+    "/{request_id}/comments",
+    response_model=list[RequestCommentResponse],
+    summary="List request comments",
+)
+def list_request_comments(
+    request_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
+) -> list[RequestComment]:
+    req = db.query(Request).filter(Request.id == request_id).first()
+    if req is None or not _can_access_request(req, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    return (
+        db.query(RequestComment)
+        .options(joinedload(RequestComment.author))
+        .filter(RequestComment.request_id == request_id)
+        .order_by(RequestComment.created_at.asc())
+        .all()
+    )
+
+
+@router.post(
+    "/{request_id}/comments",
+    response_model=RequestCommentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a request comment",
+)
+def create_request_comment(
+    request_id: int,
+    payload: RequestCommentCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
+) -> RequestComment:
+    req = db.query(Request).filter(Request.id == request_id).first()
+    if req is None or not _can_access_request(req, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    comment = RequestComment(
+        request_id=request_id,
+        author_id=current_user.id,
+        body=payload.body,
+    )
+    db.add(comment)
+    _add_request_event(db, request_id, current_user.id, "comment", "A fost adăugată o notă.")
+    db.commit()
+    db.refresh(comment)
+    return (
+        db.query(RequestComment)
+        .options(joinedload(RequestComment.author))
+        .filter(RequestComment.id == comment.id)
+        .first()
+    )
+
+
+@router.get(
+    "/{request_id}/events",
+    response_model=list[RequestEventResponse],
+    summary="List request timeline events",
+)
+def list_request_events(
+    request_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
+) -> list[RequestEvent]:
+    req = db.query(Request).filter(Request.id == request_id).first()
+    if req is None or not _can_access_request(req, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found.",
+        )
+
+    events = (
+        db.query(RequestEvent)
+        .options(joinedload(RequestEvent.actor))
+        .filter(RequestEvent.request_id == request_id)
+        .order_by(RequestEvent.created_at.asc())
+        .all()
+    )
+    if events:
+        return events
+
+    _add_request_event(db, req.id, req.guest_id, "created", "Cererea a fost creată.")
+    db.commit()
+    return (
+        db.query(RequestEvent)
+        .options(joinedload(RequestEvent.actor))
+        .filter(RequestEvent.request_id == request_id)
+        .order_by(RequestEvent.created_at.asc())
+        .all()
+    )
